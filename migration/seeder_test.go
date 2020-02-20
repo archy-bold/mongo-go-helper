@@ -89,26 +89,26 @@ var seedDataTests = []struct {
 	{"nil task", nil, true, nil, []interface{}{}},
 	{"empty task", &schema.SeedTableTask{}, true, ErrNoCollection, nil},
 	{"no filter",
-		&schema.SeedTableTask{Task: schema.Task{"test"}},
+		&schema.SeedTableTask{Task: schema.Task{Collection: "test"}},
 		true,
 		ErrNoFindFilterFn,
 		nil,
 	},
 	{"no model",
-		&schema.SeedTableTask{Task: schema.Task{"test"}, FindFilterFn: findFilterFn},
+		&schema.SeedTableTask{Task: schema.Task{Collection: "test"}, FindFilterFn: findFilterFn},
 		true,
 		ErrNoModel,
 		nil,
 	},
 	{"no data",
-		&schema.SeedTableTask{Task: schema.Task{"test"}, FindFilterFn: findFilterFn, Model: &exampleModel{}},
+		&schema.SeedTableTask{Task: schema.Task{Collection: "test"}, FindFilterFn: findFilterFn, Model: &exampleModel{}},
 		true,
 		nil,
 		[]interface{}{},
 	},
 	{"seeds new data",
 		&schema.SeedTableTask{
-			Task:         schema.Task{"test"},
+			Task:         schema.Task{Collection: "test"},
 			Items:        []base.ModelInterface{&exampleModel{Str: "test1", Num: 999}, &exampleModel{Str: "test2", Num: 1000}},
 			FindFilterFn: findFilterFn,
 			Model:        &exampleModel{},
@@ -119,7 +119,7 @@ var seedDataTests = []struct {
 	},
 	{"updates data",
 		&schema.SeedTableTask{
-			Task:         schema.Task{"test"},
+			Task:         schema.Task{Collection: "test"},
 			Items:        []base.ModelInterface{&exampleModel{Str: "testing", Num: 999}, &exampleModel{Str: "testing2", Num: 1000}},
 			FindFilterFn: findFilterFn,
 			Model:        &exampleModel{},
@@ -130,7 +130,7 @@ var seedDataTests = []struct {
 	},
 	{"seeds new with callback",
 		&schema.SeedTableTask{
-			Task:         schema.Task{"test"},
+			Task:         schema.Task{Collection: "test"},
 			Items:        []base.ModelInterface{&exampleModel{Str: "test1", Num: 999}, &exampleModel{Str: "test2", Num: 1000}},
 			FindFilterFn: findFilterFn,
 			Model:        &exampleModel{},
@@ -142,7 +142,7 @@ var seedDataTests = []struct {
 	},
 	{"seeds new - error",
 		&schema.SeedTableTask{
-			Task:         schema.Task{"!"},
+			Task:         schema.Task{Collection: "!"},
 			Items:        []base.ModelInterface{&exampleModel{Str: "test1", Num: 999}},
 			FindFilterFn: findFilterFnErr,
 			Model:        &exampleModel{},
@@ -153,7 +153,7 @@ var seedDataTests = []struct {
 	},
 	{"seeds new data - string ID",
 		&schema.SeedTableTask{
-			Task:         schema.Task{"test2"},
+			Task:         schema.Task{Collection: "test2"},
 			Items:        []base.ModelInterface{&exampleModelStrID{ID: "test1", Num: 999}, &exampleModelStrID{ID: "test2", Num: 1000}},
 			FindFilterFn: findFilterFn2,
 			Model:        &exampleModelStrID{},
@@ -164,7 +164,7 @@ var seedDataTests = []struct {
 	},
 	{"updates data - string ID",
 		&schema.SeedTableTask{
-			Task:         schema.Task{"test2"},
+			Task:         schema.Task{Collection: "test2"},
 			Items:        []base.ModelInterface{&exampleModelStrID{ID: "test1", Num: 1}, &exampleModelStrID{ID: "test2", Num: 2}},
 			FindFilterFn: findFilterFn2,
 			Model:        &exampleModelStrID{},
@@ -213,7 +213,7 @@ func Test_DeliveriesRepository_SeedData(t *testing.T) {
 			if tt.task != nil {
 				coll = tt.task.Collection
 			}
-			res, _ := helper.Find(ctx, coll, nil, item, base.FindOptions{})
+			res, _ := helper.Find(ctx, coll, &bson.M{}, item, base.FindOptions{})
 
 			assert.Lenf(t, res.Items, len(tt.expected), "Expected collection to match the expected len for SeedData on test '%s'", tt.tn)
 			for i, ex := range tt.expected {
@@ -270,7 +270,7 @@ func findExampleModelStrID(arr []interface{}, id string) *exampleModelStrID {
 
 func cleanTests(ctx context.Context, db base.MongoDB) {
 	c := db.Collection("test")
-	c.DeleteMany(ctx, nil)
+	c.DeleteMany(ctx, &bson.M{})
 	c = db.Collection("test2")
-	c.DeleteMany(ctx, nil)
+	c.DeleteMany(ctx, &bson.M{})
 }
