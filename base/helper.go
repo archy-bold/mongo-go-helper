@@ -114,6 +114,8 @@ func (h *helper) InsertOne(ctx context.Context, coll string, item interface{}) (
 func (h *helper) GetIDFromInsertOneResult(res *mongo.InsertOneResult) (primitive.ObjectID, error) {
 	if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
 		return oid, nil
+	} else if res.InsertedID != nil {
+		return primitive.NilObjectID, nil
 	}
 	return primitive.NilObjectID, ErrUnexpectedInsertResult
 }

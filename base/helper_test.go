@@ -242,7 +242,7 @@ var getIDFromInsertOneResultTests = map[string]struct {
 	err error
 }{
 	"success":            {sampleObjectID, sampleObjectID, nil},
-	"not objectid":       {&bson.E{Key: "_id", Value: "string id"}, "", ErrUnexpectedInsertResult},
+	"not objectid":       {&bson.E{Key: "_id", Value: "string id"}, "", nil},
 	"error empty result": {nil, "", ErrUnexpectedInsertResult},
 }
 
