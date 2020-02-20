@@ -120,15 +120,15 @@ var findTests = map[string]struct {
 		&bson.D{{Key: "sub.type_id", Value: bson.M{"$in": bson.A{"type_2", "type_1"}}}},
 		"test", FindOptions{}, []int{0, 1}, pagination.Result{Total: 2}, "",
 	},
-	"nil - matches all":     {nil, "test", FindOptions{}, []int{0, 1}, pagination.Result{Total: 2}, ""},
-	"paginate - first":      {nil, "test", FindOptions{PageSize: 1}, []int{0}, pagination.Result{CurrentPage: 1, PageSize: 1, NumberOfPages: 2, Total: 2}, ""},
-	"paginate - second":     {nil, "test", FindOptions{Page: 2, PageSize: 1}, []int{1}, pagination.Result{CurrentPage: 2, PageSize: 1, NumberOfPages: 2, Total: 2}, ""},
-	"paginate - none":       {nil, "test", FindOptions{Page: 3, PageSize: 1}, []int{}, pagination.Result{CurrentPage: 3, PageSize: 1, NumberOfPages: 2, Total: 2}, ""},
-	"paginate - all":        {nil, "test", FindOptions{PageSize: 2}, []int{0, 1}, pagination.Result{CurrentPage: 1, PageSize: 2, NumberOfPages: 1, Total: 2}, ""},
-	"paginate - no matches": {&bson.M{"str": "blah"}, "test", FindOptions{PageSize: 10}, []int{}, pagination.Result{CurrentPage: 1, PageSize: 10, NumberOfPages: 0, Total: 0}, ""},
-	"by random objectid":    {&bson.M{"_id": primitive.NewObjectID()}, "test", FindOptions{}, []int{}, pagination.Result{}, ""},
-	"sorted":                {nil, "test", FindOptions{Sorting: map[string]interface{}{"sub.type_id": -1}}, []int{1, 0}, pagination.Result{Total: 2}, ""},
-	"error":                 {"filter", "test", FindOptions{}, nil, pagination.Result{}, "failed count on Find: cannot transform type string to a *bson.D"},
+	"empty doc - matches all": {&bson.M{}, "test", FindOptions{}, []int{0, 1}, pagination.Result{Total: 2}, ""},
+	"paginate - first":        {&bson.M{}, "test", FindOptions{PageSize: 1}, []int{0}, pagination.Result{CurrentPage: 1, PageSize: 1, NumberOfPages: 2, Total: 2}, ""},
+	"paginate - second":       {&bson.M{}, "test", FindOptions{Page: 2, PageSize: 1}, []int{1}, pagination.Result{CurrentPage: 2, PageSize: 1, NumberOfPages: 2, Total: 2}, ""},
+	"paginate - none":         {&bson.M{}, "test", FindOptions{Page: 3, PageSize: 1}, []int{}, pagination.Result{CurrentPage: 3, PageSize: 1, NumberOfPages: 2, Total: 2}, ""},
+	"paginate - all":          {&bson.M{}, "test", FindOptions{PageSize: 2}, []int{0, 1}, pagination.Result{CurrentPage: 1, PageSize: 2, NumberOfPages: 1, Total: 2}, ""},
+	"paginate - no matches":   {&bson.M{"str": "blah"}, "test", FindOptions{PageSize: 10}, []int{}, pagination.Result{CurrentPage: 1, PageSize: 10, NumberOfPages: 0, Total: 0}, ""},
+	"by random objectid":      {&bson.M{"_id": primitive.NewObjectID()}, "test", FindOptions{}, []int{}, pagination.Result{}, ""},
+	"sorted":                  {&bson.M{}, "test", FindOptions{Sorting: map[string]interface{}{"sub.type_id": -1}}, []int{1, 0}, pagination.Result{Total: 2}, ""},
+	"error":                   {"filter", "test", FindOptions{}, nil, pagination.Result{}, "failed count on Find: cannot transform type string to a BSON Document: WriteString can only write while positioned on a Element or Value but is positioned on a TopLevel"},
 }
 
 func Test_Find(t *testing.T) {
@@ -189,7 +189,7 @@ var insertOneTests = map[string]struct {
 }{
 	"empty struct":  {exampleStruct{}, "test", ""},
 	"filled struct": {exampleStruct{primitive.NewObjectID(), "string", 1000, exampleSubStruct{}}, "test", ""},
-	"nil":           {"string", "test", "cannot transform type string to a *bson.D"},
+	"nil":           {"string", "test", "cannot transform type string to a BSON Document: WriteString can only write while positioned on a Element or Value but is positioned on a TopLevel"},
 }
 
 func Test_InsertOne(t *testing.T) {
@@ -242,7 +242,7 @@ var getIDFromInsertOneResultTests = map[string]struct {
 	err error
 }{
 	"success":            {sampleObjectID, sampleObjectID, nil},
-	"not objectid":       {&bson.E{Key: "_id", Value: "string id"}, "", nil},
+	"not objectid":       {&bson.E{Key: "_id", Value: "string id"}, "", ErrUnexpectedInsertResult},
 	"error empty result": {nil, "", ErrUnexpectedInsertResult},
 }
 
@@ -253,14 +253,12 @@ func Test_GetIDFromInsertOneResult(t *testing.T) {
 
 	for tn, tt := range getIDFromInsertOneResultTests {
 		// Set up the result
-		var res *mongo.InsertOneResult
+		res := &mongo.InsertOneResult{}
 		if id, ok := tt.res.(string); ok {
 			oid, _ := primitive.ObjectIDFromHex(id)
-			res = &mongo.InsertOneResult{InsertedID: &bson.E{Key: "_id", Value: oid}}
+			res = &mongo.InsertOneResult{InsertedID: oid}
 		} else if el, ok := tt.res.(*bson.E); ok {
 			res = &mongo.InsertOneResult{InsertedID: el}
-		} else {
-			res = &mongo.InsertOneResult{}
 		}
 
 		id, err := h.GetIDFromInsertOneResult(res)
@@ -287,7 +285,7 @@ var updateOneTests = map[string]struct {
 	"filled struct":           {exampleStruct{primitive.NewObjectID(), "string", 1000, exampleSubStruct{}}, "test", true, ""},
 	"empty struct":            {exampleStruct{}, "test", true, ""},
 	"filled struct, no match": {exampleStruct{primitive.NewObjectID(), "string", 1000, exampleSubStruct{}}, "test", false, ErrNoMatches.Error()},
-	"error":                   {"string", "test", true, "cannot transform type string to a *bson.D"},
+	"error":                   {"string", "test", true, "cannot transform type string to a BSON Document: WriteString can only write while positioned on a Element or Value but is positioned on a TopLevel"},
 }
 
 func Test_UpdateOne(t *testing.T) {
@@ -338,16 +336,16 @@ func Test_UpdateOne(t *testing.T) {
 }
 
 var getIndexTests = map[string]struct {
-	uri        string
-	collection string
-	index      string
-	expected   *bson.M
-	err        string
+	uri         string
+	collection  string
+	index       string
+	expectedKey *bson.M
+	err         string
 }{
-	"success":            {"default", "test", "test_index", &bson.M{"foo": -1}, ""},
-	"non-existent index": {"default", "test", "not_there", nil, ""},
-	"non-existent table": {"default", "tests", "test_index", nil, ""},
-	"error":              {"mongodb://127.0.0.1:27018", "test", "test_index", nil, "(InvalidNamespace) Invalid collection name specified 'db-test.$\\\"'"},
+	"success":            {"default", "test", "test_index", &bson.M{"foo": int32(-1)}, ""},
+	"non-existent index": {"default", "test", "not_there", (*bson.M)(nil), ""},
+	"non-existent table": {"default", "tests", "test_index", (*bson.M)(nil), ""},
+	"error":              {"mongodb://127.0.0.1:27018", "test", "test_index", (*bson.M)(nil), "(InvalidNamespace) Invalid collection name specified 'db-test.$\\\"'"},
 }
 
 func Test_GetIndex(t *testing.T) {
@@ -374,18 +372,19 @@ func Test_GetIndex(t *testing.T) {
 		// Do the assertions
 		if tt.err == "" {
 			assert.Nilf(t, err, "Expected nil err for GetIndex on test '%s'", tn)
-			if tt.expected == nil {
+			if tt.expectedKey == nil {
 				assert.Nilf(t, res, "Expected nil index for GetIndex on test '%s'", tn)
 			} else {
-				m := *res
-				key := m["key"]
-				assert.Equalf(t, tt.expected, key, "Expected key to equal expected on test '%s'", tn)
+				key := (*res)["key"]
+				name := (*res)["name"]
+				assert.Equalf(t, *tt.expectedKey, key, "Expected key to equal expected on test '%s'", tn)
+				assert.Equalf(t, tt.index, name, "Expected name to equal expected on test '%s'", tn)
 			}
 		} else {
 			assert.Errorf(t, err, "Expected not nil err for GetIndex on test '%s'", tn)
 			// assert.NotNilf(t, err, "Expected not nil err for GetIndex on test '%s'", tn)
 			// assert.Equalf(t, tt.err, err.Error(), "Expected err ('%s') to equal '%s' on test '%s'", err.Error(), tt.err, tn)
-			assert.Equalf(t, tt.expected, res, "Expected not nil repo for GetIndex on test '%s'", tn)
+			assert.Equalf(t, tt.expectedKey, res, "Expected not nil repo for GetIndex on test '%s'", tn)
 		}
 	}
 }
@@ -400,7 +399,7 @@ var hasIndexTests = map[string]struct {
 	"success":            {"default", "test", "test_index", true, ""},
 	"non-existent index": {"default", "test", "not_there", false, ""},
 	"non-existent table": {"default", "testw", "test_index", false, ""},
-	"error":              {"mongodb://127.0.0.1:27018", "test", "test_index", false, "topology is closed"},
+	"error":              {"mongodb://127.0.0.1:27018", "test", "test_index", false, "client is disconnected"},
 }
 
 func Test_HasIndex(t *testing.T) {
@@ -437,26 +436,29 @@ func Test_HasIndex(t *testing.T) {
 	}
 }
 
-var addIndexIfNotExistsTests = map[string]struct {
+var addIndexIfNotExistsTests = []struct {
+	test          string
 	uri           string
 	index         string
 	err           string
 	existsAlready bool
 }{
-	"index exists already": {"default", "test_index", "", true},
-	"new index added":      {"default", "new_index", "", false},
-	"new index exists":     {"default", "new_index", "", true},
-	"error":                {"mongodb://127.0.0.1:27018", "test_index", "topology is closed", false},
+	{"index exists already", "default", "test_index", "", true},
+	{"new index added", "default", "new_index", "", false},
+	{"new index exists", "default", "new_index", "", true},
+	{"error", "mongodb://127.0.0.1:27018", "test_index", "client is disconnected", false},
 }
 
 func Test_AddIndexIfNotExists(t *testing.T) {
 	ctx := context.Background()
+	defaultDb, _ := setupTests(ctx)
+	defer cleanTests(ctx, defaultDb)
 
-	for tn, tt := range addIndexIfNotExistsTests {
+	for _, tt := range addIndexIfNotExistsTests {
 		// Set up the client
 		var db MongoDB
 		if tt.uri == "default" {
-			db, _ = setupTests(ctx)
+			db = defaultDb
 		} else {
 			opt := options.Client()
 			opt.ApplyURI(tt.uri)
@@ -470,18 +472,18 @@ func Test_AddIndexIfNotExists(t *testing.T) {
 
 		if tt.existsAlready {
 			HasIndex, _ := h.HasIndex(ctx, "test", tt.index)
-			assert.Truef(t, HasIndex, "Expected index '%s' to already exist for test '%s'", tt.index, tn)
+			assert.Truef(t, HasIndex, "Expected index '%s' to already exist for test '%s'", tt.index, tt.test)
 		}
 
 		err := h.AddIndexIfNotExists(ctx, "test", tt.index, &bson.M{"bar": -1})
 
 		// Do the assertions
 		if tt.err == "" {
-			assert.Nilf(t, err, "Expected nil err for HasIndex on test '%s'", tn)
+			assert.Nilf(t, err, "Expected nil err for HasIndex on test '%s'", tt.test)
 			HasIndex, _ := h.HasIndex(ctx, "test", tt.index)
-			assert.Truef(t, HasIndex, "Expected index '%s' to exist for test '%s'", tt.index, tn)
+			assert.Truef(t, HasIndex, "Expected index '%s' to exist for test '%s'", tt.index, tt.test)
 		} else {
-			assert.EqualErrorf(t, err, tt.err, "Expected err ('%s') to equal '%s' on test '%s'", err.Error(), tt.err, tn)
+			assert.EqualErrorf(t, err, tt.err, "Expected err ('%s') to equal '%s' on test '%s'", err.Error(), tt.err, tt.test)
 			// assert.NotNilf(t, err, "Expected not nil err for HasIndex on test '%s'", tn)
 			// assert.Equalf(t, tt.err, err.Error(), "Expected err ('%s') to equal '%s' on test '%s'", err.Error(), tt.err, tn)
 		}
@@ -513,7 +515,7 @@ func setupTests(ctx context.Context) (MongoDB, *mongo.Client) {
 	iv.CreateOne(
 		ctx,
 		mongo.IndexModel{
-			Keys: &bson.M{
+			Keys: bson.M{
 				"foo": -1,
 			},
 			Options: iop,
@@ -524,7 +526,7 @@ func setupTests(ctx context.Context) (MongoDB, *mongo.Client) {
 
 func cleanTests(ctx context.Context, db MongoDB) {
 	c := db.Collection("test")
-	c.DeleteMany(ctx, nil)
+	c.DeleteMany(ctx, &bson.M{})
 	iv := c.Indexes()
 	iv.DropOne(ctx, "test_index")
 	iv.DropOne(ctx, "not_there")

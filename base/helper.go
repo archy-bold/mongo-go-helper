@@ -115,7 +115,7 @@ func (h *helper) GetIDFromInsertOneResult(res *mongo.InsertOneResult) (primitive
 	if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
 		return oid, nil
 	}
-	return primitive.NilObjectID, nil
+	return primitive.NilObjectID, ErrUnexpectedInsertResult
 }
 
 func (h *helper) UpdateOne(ctx context.Context, coll string, filter interface{}, item interface{}) error {
@@ -145,13 +145,13 @@ func (h *helper) GetIndex(ctx context.Context, coll string, index string) (*bson
 	defer cur.Close(ctx)
 
 	for cur.Next(ctx) {
-		elem := bson.M{}
-		err = cur.Decode(&elem)
+		elem := &bson.M{}
+		err = cur.Decode(elem)
 
 		// Check the value of the name element
-		if ni, ok := elem["name"]; ok {
+		if ni, ok := (*elem)["name"]; ok {
 			if name, ok := ni.(string); ok && name == index {
-				return &elem, err
+				return elem, err
 			}
 		}
 	}
