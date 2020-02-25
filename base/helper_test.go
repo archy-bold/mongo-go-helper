@@ -34,7 +34,8 @@ var newClientTests = map[string]struct {
 	err string
 }{
 	"success": {defaultURI, ""},
-	"error":   {"bad-uri", "error parsing uri: scheme must be \"mongodb\" or \"mongodb+srv\""},
+	// "with credentials": {"mongodb://user:pass@localhost:27017", ""},
+	"error": {"bad-uri", "error parsing uri: scheme must be \"mongodb\" or \"mongodb+srv\""},
 }
 
 func Test_NewClient(t *testing.T) {
