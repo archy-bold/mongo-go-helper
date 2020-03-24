@@ -37,6 +37,7 @@ type MongoHelper interface {
 	GetIndex(ctx context.Context, coll string, index string) (*bson.M, error)
 	HasIndex(ctx context.Context, coll string, index string) (bool, error)
 	AddIndexIfNotExists(ctx context.Context, coll string, name string, keys interface{}) error
+	Aggregate(ctx context.Context, coll string, pipeline mongo.Pipeline) ([]bson.M, error)
 }
 
 type helper struct {
@@ -187,6 +188,21 @@ func (h *helper) AddIndexIfNotExists(ctx context.Context, coll string, name stri
 		})
 	}
 	return nil
+}
+
+func (h *helper) Aggregate(ctx context.Context, coll string, pipeline mongo.Pipeline) ([]bson.M, error) {
+	c := h.db.Collection(coll)
+	cur, err := c.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+
+	var ret []bson.M
+	if err = cur.All(ctx, &ret); err != nil {
+		return nil, err
+	}
+
+	return ret, nil
 }
 
 func (h *helper) convertFindOpts(opts FindOptions) *options.FindOptions {

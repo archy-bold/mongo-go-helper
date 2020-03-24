@@ -24,9 +24,10 @@ type exampleStruct struct {
 }
 
 var (
-	sampleObjectID = "5bb1deea71615727e4ae5e26"
-	testDB         = "db-test"
-	defaultURI     = "mongodb://localhost:27017"
+	sampleObjectID       = "5bb1deea71615727e4ae5e26"
+	testDB               = "db-test"
+	defaultURI           = "mongodb://localhost:27017"
+	sampleObjectIDObj, _ = primitive.ObjectIDFromHex(sampleObjectID)
 )
 
 var newClientTests = map[string]struct {
@@ -487,6 +488,48 @@ func Test_AddIndexIfNotExists(t *testing.T) {
 			assert.EqualErrorf(t, err, tt.err, "Expected err ('%s') to equal '%s' on test '%s'", err.Error(), tt.err, tt.test)
 			// assert.NotNilf(t, err, "Expected not nil err for HasIndex on test '%s'", tn)
 			// assert.Equalf(t, tt.err, err.Error(), "Expected err ('%s') to equal '%s' on test '%s'", err.Error(), tt.err, tn)
+		}
+	}
+}
+
+var aggregateTests = map[string]struct {
+	pipeline mongo.Pipeline
+	expected []bson.M
+	err      string
+}{
+	"successful calle to aggregate": {
+		pipeline: mongo.Pipeline{
+			bson.D{{Key: "$match", Value: bson.D{{Key: "num", Value: 999}}}},
+		},
+		expected: []bson.M{{"_id": sampleObjectIDObj, "str": "test string", "num": int32(999), "sub": bson.M{"type_id": ""}}},
+	},
+	"aggregate error": {
+		pipeline: mongo.Pipeline{
+			bson.D{{Key: "$notafunc", Value: bson.D{}}},
+		},
+		err: "(Location40324) Unrecognized pipeline stage name: '$notafunc'",
+	},
+}
+
+func Test_Aggregate(t *testing.T) {
+	ctx := context.Background()
+	db, _ := setupTests(ctx)
+	defer cleanTests(ctx, db)
+	// Create the helper
+	var h MongoHelper
+	h = &helper{db}
+	// Insert one row into test
+	h.InsertOne(ctx, "test", exampleStruct{sampleObjectIDObj, "test string", 999, exampleSubStruct{}})
+
+	for tn, tt := range aggregateTests {
+		ret, err := h.Aggregate(ctx, "test", tt.pipeline)
+
+		if tt.err == "" {
+			assert.Nilf(t, err, "Expected nil err for Aggregate on test '%s'", tn)
+			assert.Equalf(t, tt.expected, ret, "Expected ret to match for test '%s'", tn)
+		} else {
+			assert.EqualErrorf(t, err, tt.err, "Expected err ('%s') to equal '%s' on test '%s'", err.Error(), tt.err, tn)
+			assert.Nilf(t, ret, "Expected err ('%s') to equal '%s' on test '%s'", err.Error(), tt.err, tn)
 		}
 	}
 }

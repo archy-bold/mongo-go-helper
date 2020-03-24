@@ -35,6 +35,29 @@ func (_m *MongoHelper) AddIndexIfNotExists(ctx context.Context, coll string, nam
 	return r0
 }
 
+// Aggregate provides a mock function with given fields: ctx, coll, pipeline
+func (_m *MongoHelper) Aggregate(ctx context.Context, coll string, pipeline mongo.Pipeline) ([]primitive.M, error) {
+	ret := _m.Called(ctx, coll, pipeline)
+
+	var r0 []primitive.M
+	if rf, ok := ret.Get(0).(func(context.Context, string, mongo.Pipeline) []primitive.M); ok {
+		r0 = rf(ctx, coll, pipeline)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]primitive.M)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, mongo.Pipeline) error); ok {
+		r1 = rf(ctx, coll, pipeline)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Find provides a mock function with given fields: ctx, coll, filter, item, opts
 func (_m *MongoHelper) Find(ctx context.Context, coll string, filter interface{}, item interface{}, opts base.FindOptions) (pagination.Result, error) {
 	ret := _m.Called(ctx, coll, filter, item, opts)
